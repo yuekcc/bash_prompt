@@ -1,13 +1,12 @@
 const std = @import("std");
 const process = std.process;
+const fmt = std.fmt;
 
-// Control Sequence Introducer
+// https://chrisyeh96.github.io/2020/03/28/terminal-colors.html
 const CSI = "\x1B[";
+const ESC = "\x1B";
 
-// ANSI Escape Code
-pub const ESC = "\x1B";
-
-const Color4 = enum(u7) {
+const DefaultColor = enum(u8) {
     black = 30,
     red = 31,
     green = 32,
@@ -27,20 +26,20 @@ const Color4 = enum(u7) {
     bright_white = 97,
 };
 
-fn bgColor4(writer: anytype, mode: Color4) !void {
-    try writer.print(CSI ++ "{d}m", .{@enumToInt(mode) + 10});
-}
+fn Styles() type {
+    comptime var fg_red = fmt.comptimePrint(CSI ++ "{d}m", .{@enumToInt(DefaultColor.red)});
+    comptime var fg_blue = fmt.comptimePrint(CSI ++ "{d}m", .{@enumToInt(DefaultColor.blue)});
+    comptime var fg_yellow = fmt.comptimePrint(CSI ++ "{d}m", .{@enumToInt(DefaultColor.yellow)});
+    comptime var sgr_reset = CSI ++ "0m";
 
-fn fgColor4(writer: anytype, mode: Color4) !void {
-    try writer.print(CSI ++ "{d}m", .{@enumToInt(mode)});
-}
+    return struct {
+        // 重置样式
+        sgr_reset: []const u8 = sgr_reset,
 
-fn resetAll(writer: anytype) !void {
-    try writer.writeAll(ESC ++ "c");
-}
-
-fn resetSGR(writer: anytype) !void {
-    try writer.writeAll(CSI ++ "0m");
+        fg_red: []const u8 = fg_red,
+        fg_blue: []const u8 = fg_blue,
+        fg_yellow: []const u8 = fg_yellow,
+    };
 }
 
 pub fn main() !void {
@@ -49,23 +48,22 @@ pub fn main() !void {
     const allocator = arena.allocator();
 
     const pwd = try process.getCwdAlloc(allocator);
-    
-    const stdout_file = std.io.getStdOut().writer();
-    var bw = std.io.bufferedWriter(stdout_file);
+
+    const stdout_writer = std.io.getStdOut().writer();
+    var bw = std.io.bufferedWriter(stdout_writer);
     const stdout = bw.writer();
 
-    try stdout.print("\n", .{});
-    try fgColor4(stdout, .blue);
-    try stdout.print("{s}", .{pwd});
-    try resetSGR(stdout);
-    try stdout.print("\n", .{});
+    const styles = Styles(){};
+    comptime var pwd_layout = "\n" ++ styles.fg_blue ++ "{s}" ++ styles.sgr_reset ++ "\n";
+    try stdout.print(pwd_layout, .{pwd});
 
     try bw.flush();
 }
 
-test "fgColor4" {
+test {
+    const styles = Styles(){};
+
     const stdout = std.io.getStdOut().writer();
-    try fgColor4(stdout, .blue);
-    try stdout.print("xxxx", .{});
-    try resetSGR(stdout);
+    comptime var pwd_layout = "\n" ++ styles.fg_red ++ "{s}" ++ styles.sgr_reset ++ "\n";
+    try stdout.print(pwd_layout, .{"hello, world"});
 }
