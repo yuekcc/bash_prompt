@@ -1,6 +1,5 @@
 const std = @import("std");
 const process = std.process;
-const fmt = std.fmt;
 const fs = std.fs;
 const path = std.fs.path;
 
