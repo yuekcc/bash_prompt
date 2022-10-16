@@ -29,7 +29,7 @@ pub fn main() !void {
             try stdout.print(styles.fg_red ++ "*" ++ styles.sgr_reset, .{});
         }
     } else |_| {
-        unreachable;
+        // do nothing on error
     }
 
     try stdout.print("\n", .{});

@@ -4,16 +4,23 @@ const fmt = std.fmt;
 const fs = std.fs;
 const path = std.fs.path;
 
-pub fn findRepoRoot(allocator: std.mem.Allocator, start: []const u8) ![]const u8 {
-    const dot_git_path = try path.resolve(allocator, &[_][]const u8{ start, ".git" });
+const RepoError = error{
+    NotFound,
+};
 
-    // TODO: 优化判断方式
-    if (fs.openDirAbsolute(dot_git_path, .{})) |_| {
-        return start;
-    } else |_| {
+pub fn findRepoRoot(allocator: std.mem.Allocator, start: []const u8) ![]const u8 {
+    const git_dir = try path.resolve(allocator, &[_][]const u8{ start, ".git" });
+    var dir = fs.openDirAbsolute(git_dir, .{}) catch {
         const parent_dir = path.dirname(start);
-        return findRepoRoot(allocator, parent_dir.?);
-    }
+        if (parent_dir != null) {
+            return findRepoRoot(allocator, parent_dir.?);
+        } else {
+            return RepoError.NotFound;
+        }
+    };
+
+    defer dir.close();
+    return start;
 }
 
 pub fn gitInDir(allocator: std.mem.Allocator, dir: []const u8, argv: []const []const u8) !std.ChildProcess.ExecResult {
