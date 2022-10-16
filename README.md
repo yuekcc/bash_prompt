@@ -7,10 +7,8 @@
 
 效果：
 
-```sh
-D:\demo_project @ master*
-$ 
-```
+![screenshot](screen.png)
+
 ## 构建
 
 需要 zig 0.10+。构建过程：
