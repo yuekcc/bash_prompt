@@ -60,7 +60,10 @@ pub const Repo = struct {
 
         var splited = std.mem.split(u8, output.stdout, "\n");
         while (splited.next()) |entry| {
-            try result.append(entry);
+            const clean = std.mem.trim(u8, entry, "\n");
+            if (clean.len > 0) {
+                try result.append(clean);
+            }
         }
 
         return result.items;
