@@ -13,7 +13,7 @@ pub fn build(b: *std.build.Builder) void {
 
     const exe = b.addExecutable("bash_prompt", "src/main.zig");
     exe.setTarget(target);
-    exe.setBuildMode(mode);
+    exe.setBuildMode(.ReleaseSafe);
     exe.single_threaded = true;
     exe.strip = true;
     exe.install();

@@ -8,21 +8,40 @@ const RepoError = error{
 };
 
 pub fn findRepoRoot(allocator: std.mem.Allocator, start: []const u8) ![]const u8 {
-    const git_dir = try path.resolve(allocator, &[_][]const u8{ start, ".git" });
-    var dir = fs.openDirAbsolute(git_dir, .{}) catch {
-        const parent_dir = path.dirname(start);
-        if (parent_dir != null) {
-            return findRepoRoot(allocator, parent_dir.?);
-        } else {
-            return RepoError.NotFound;
-        }
-    };
+    var current = start;
+    var dir: fs.Dir = undefined;
 
-    defer dir.close();
-    return start;
+    while (true) {
+        {
+            // 设置一个代码块，用于释放 git_dir
+
+            var git_dir = try path.resolve(allocator, &[_][]const u8{ current, ".git" });
+            defer allocator.free(git_dir);
+
+            dir = fs.openDirAbsolute(git_dir, .{}) catch {
+                var parent_dir = path.dirname(current);
+
+                // 如果 current 是根目录，parent_dir = null
+                if (parent_dir == null) {
+                    return RepoError.NotFound;
+                }
+
+                // 设置为父目录，继续查找 .git 目录
+                current = parent_dir.?;
+                continue;
+            };
+        }
+        dir.close();
+        break;
+    }
+
+    return allocator.dupe(u8, current);
 }
 
-pub fn gitInDir(allocator: std.mem.Allocator, dir: []const u8, argv: []const []const u8) !std.ChildProcess.ExecResult {
+// 用 arena 分配器解决内部内存释放问题
+pub fn gitInDir(arena: *std.heap.ArenaAllocator, dir: []const u8, argv: []const []const u8) !std.ChildProcess.ExecResult {
+    var allocator = arena.allocator();
+
     var cmd_line = std.ArrayList([]const u8).init(allocator);
     defer cmd_line.deinit();
 
@@ -31,81 +50,100 @@ pub fn gitInDir(allocator: std.mem.Allocator, dir: []const u8, argv: []const []c
 
     return std.ChildProcess.exec(.{
         .allocator = allocator,
-        .argv = cmd_line.items,
+        .argv = cmd_line.toOwnedSlice(),
     });
 }
 
 pub const Repo = struct {
-    allocator: std.mem.Allocator,
+    arena_allocator: std.heap.ArenaAllocator,
     dir: []const u8,
 
-    pub fn discover(allocator: std.mem.Allocator) !Repo {
-        const cwd = try process.getCwdAlloc(allocator);
-        const repo_dir = try findRepoRoot(allocator, cwd);
+    const Self = @This();
 
-        return Repo{
-            .allocator = allocator,
+    pub fn discover(allocator: std.mem.Allocator) !Self {
+        var arena_allocator = std.heap.ArenaAllocator.init(allocator);
+        var allocator_ = arena_allocator.allocator();
+
+        var cwd = try process.getCwdAlloc(allocator_);
+        var repo_dir = try findRepoRoot(allocator_, cwd);
+
+        return Self{
+            .arena_allocator = arena_allocator,
             .dir = repo_dir,
         };
     }
 
-    fn git(self: *const Repo, argv: []const []const u8) !std.ChildProcess.ExecResult {
-        return gitInDir(self.allocator, self.dir, argv);
+    pub fn deinit(self: *Self) void {
+        self.arena_allocator.deinit();
     }
 
-    pub fn getCurrentBranch(self: *const Repo) ![]const u8 {
-        const output = try self.git(&[_][]const u8{ "rev-parse", "--abbrev-ref", "HEAD" });
+    fn getAllocator(self: *Self) std.mem.Allocator {
+        return self.arena_allocator.allocator();
+    }
+
+    fn git(self: *Self, argv: []const []const u8) !std.ChildProcess.ExecResult {
+        return gitInDir(&self.arena_allocator, self.dir, argv);
+    }
+
+    pub fn getCurrentBranch(self: *Self) ![]const u8 {
+        var output = try self.git(&[_][]const u8{ "rev-parse", "--abbrev-ref", "HEAD" });
         return std.mem.trim(u8, output.stdout, "\n");
     }
 
-    pub fn getChanges(self: *const Repo) ![][]const u8 {
-        const output = try self.git(&[_][]const u8{ "status", "--porcelain" });
+    pub fn getChanges(self: *Self) ![][]const u8 {
+        var output = try self.git(&[_][]const u8{ "status", "--porcelain" });
 
-        var result = std.ArrayList([]const u8).init(self.allocator);
+        var result = std.ArrayList([]const u8).init(self.getAllocator());
         defer result.deinit();
 
         var splited = std.mem.split(u8, output.stdout, "\n");
         while (splited.next()) |entry| {
-            const clean = std.mem.trim(u8, entry, "\n");
+            var clean = std.mem.trim(u8, entry, "\n");
             if (clean.len > 0) {
                 try result.append(clean);
             }
         }
 
-        return result.items;
+        return result.toOwnedSlice();
     }
 };
 
 test "find_dot_git" {
-    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-    defer arena.deinit();
-    const allocator = arena.allocator();
+    var allocator = std.testing.allocator;
 
-    const cwd = try process.getCwdAlloc(allocator);
-    const repo_root = try findRepoRoot(allocator, cwd);
+    var cwd = try process.getCwdAlloc(allocator);
+    defer allocator.free(cwd);
+
+    var repo_root = try findRepoRoot(allocator, cwd);
+    defer allocator.free(repo_root);
+
     std.debug.print("repo_root = {s}\n", .{repo_root});
 }
 
 test "exec_git_in_dir" {
-    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    var allocator = std.testing.allocator;
+
+    var cwd = try process.getCwdAlloc(allocator);
+    defer allocator.free(cwd);
+
+    var repo_root = try findRepoRoot(allocator, cwd);
+    defer allocator.free(repo_root);
+
+    var arena = std.heap.ArenaAllocator.init(allocator);
     defer arena.deinit();
-    const allocator = arena.allocator();
 
-    const cwd = try process.getCwdAlloc(allocator);
-    const repo_root = try findRepoRoot(allocator, cwd);
-
-    const cmd = try gitInDir(allocator, repo_root, &[_][]const u8{"version"});
+    var cmd = try gitInDir(&arena, repo_root, &[_][]const u8{"version"});
 
     try std.testing.expectEqual(cmd.term, .{ .Exited = 0 });
     std.debug.print("stdout: {s}\n", .{cmd.stdout});
 }
 
-test "open_repo" {
-    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-    defer arena.deinit();
-    const allocator = arena.allocator();
-    const repo = try Repo.discover(allocator);
-    const branch = try repo.getCurrentBranch();
+test "test_repo_obj" {
+    var allocator = std.testing.allocator;
+    var repo = try Repo.discover(allocator);
+    defer repo.deinit();
+
+    var branch = try repo.getCurrentBranch();
     std.debug.print("current branch: {s}\n", .{branch});
 
     const changes = try repo.getChanges();

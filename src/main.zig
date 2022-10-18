@@ -5,23 +5,28 @@ const styles = @import("styles.zig").styles;
 const Repo = @import("git.zig").Repo;
 
 pub fn main() !void {
-    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-    defer arena.deinit();
-    const allocator = arena.allocator();
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer {
+        _ = gpa.deinit();
+    }
+    var allocator = gpa.allocator();
 
-    const pwd = try process.getCwdAlloc(allocator);
+    var pwd = try process.getCwdAlloc(allocator);
+    defer allocator.free(pwd);
 
-    const stdout_writer = std.io.getStdOut().writer();
+    var stdout_writer = std.io.getStdOut().writer();
     var bw = std.io.bufferedWriter(stdout_writer);
-    const stdout = bw.writer();
+    var stdout = bw.writer();
 
     try stdout.print("\n", .{});
 
     try stdout.print(styles.fg_blue ++ "{s}" ++ styles.sgr_reset, .{pwd});
 
-    if (Repo.discover(allocator)) |repo| {
-        const branch_name = try repo.getCurrentBranch();
-        const changes = try repo.getChanges();
+    var repo = Repo.discover(allocator);
+    if (repo) |*repo_| {
+        defer repo_.deinit();
+        var branch_name = try repo_.getCurrentBranch();
+        var changes = try repo_.getChanges();
 
         try stdout.print(" @ ", .{});
         try stdout.print(styles.fg_yellow ++ "{s}" ++ styles.sgr_reset, .{branch_name});
@@ -33,6 +38,5 @@ pub fn main() !void {
     }
 
     try stdout.print("\n", .{});
-
     try bw.flush();
 }
