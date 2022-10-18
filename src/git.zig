@@ -63,6 +63,7 @@ pub const Repo = struct {
     pub fn discover(allocator: std.mem.Allocator) !Self {
         var arena_allocator = std.heap.ArenaAllocator.init(allocator);
         var allocator_ = arena_allocator.allocator();
+        errdefer arena_allocator.deinit();
 
         var cwd = try process.getCwdAlloc(allocator_);
         var repo_dir = try findRepoRoot(allocator_, cwd);

@@ -25,6 +25,7 @@ pub fn main() !void {
     var repo = Repo.discover(allocator);
     if (repo) |*repo_| {
         defer repo_.deinit();
+
         var branch_name = try repo_.getCurrentBranch();
         var changes = try repo_.getChanges();
 
