@@ -31,6 +31,12 @@ PS1="\$ "
 
 `bash_prompt.exe` 可以在 release 页面中找到。
 
+## 设计文档
+
+见 [RFCs]
+
+[RFCs]: https://github.com/yuekcc/bash_prompt/tree/main/rfcs
+
 ## License
 
 MIT
