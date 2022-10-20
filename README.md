@@ -21,12 +21,10 @@ zig build -Drelease-safe
 
 ## 使用
 
-首先将 `bash_prompt.exe` 放入系统 PATH 目录中。然后在 `.bashrc` 中增加这些配置：
+首先将 `bash_prompt.exe` 放入系统 PATH 目录中。然后在命令行中执行：
 
 ```sh
-PROMPT_COMMAND="bash_prompt.exe"
-export PROMPT_COMMAND
-PS1="\$ "
+bash_prompt init >> ~/.bashrc
 ```
 
 `bash_prompt.exe` 可以在 release 页面中找到。
