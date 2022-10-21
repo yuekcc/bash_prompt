@@ -1,5 +1,6 @@
 const std = @import("std");
 const process = std.process;
+const knownFolders = @import("known-folders");
 
 const styles = @import("styles.zig").styles;
 const Repo = @import("git.zig").Repo;
@@ -13,8 +14,14 @@ fn printPrompt(allocator: std.mem.Allocator, writer: anytype) !void {
     var pwd = try process.getCwdAlloc(allocator);
     defer allocator.free(pwd);
 
+    var home_dir = try knownFolders.getPath(allocator, .home);
+    defer allocator.free(home_dir.?);
+
+    var updated_pwd = try std.mem.replaceOwned(u8, allocator, pwd, home_dir.?, "~");
+    defer allocator.free(updated_pwd);
+
     try writer.print("\n", .{});
-    try writer.print(styles.fg_blue ++ "{s}" ++ styles.sgr_reset, .{pwd});
+    try writer.print(styles.fg_blue ++ "{s}" ++ styles.sgr_reset, .{updated_pwd});
 
     var repo = Repo.discover(allocator);
     if (repo) |*repo_| {
@@ -60,4 +67,11 @@ pub fn main() !void {
 
     try printPrompt(allocator, stdout_writer);
     try bw.flush();
+}
+
+test "get_home_dir" {
+    const home_dir = try knownFolders.getPath(std.testing.allocator, .home);
+    defer std.testing.allocator.free(home_dir.?);
+
+    std.debug.print("home dir: {s}\n", .{home_dir.?});
 }
