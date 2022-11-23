@@ -39,7 +39,7 @@ fn printPrompt(allocator: std.mem.Allocator, writer: anytype) !void {
         // do nothing on error
     }
 
-    try writer.print("\n", .{});
+    try writer.print("\n" ++ styles.sgr_reset, .{});
 }
 
 pub fn main() !void {
@@ -50,8 +50,8 @@ pub fn main() !void {
     var allocator = gpa.allocator();
 
     var stdout = std.io.getStdOut().writer();
-    var bw = std.io.bufferedWriter(stdout);
-    var stdout_writer = bw.writer();
+    var buffered_stdout = std.io.bufferedWriter(stdout);
+    var writer = buffered_stdout.writer();
 
     var args_iter = try std.process.argsWithAllocator(allocator);
     defer args_iter.deinit();
@@ -59,14 +59,14 @@ pub fn main() !void {
     _ = args_iter.skip();
     while (args_iter.next()) |arg| {
         if (std.mem.eql(u8, arg[0..], "init")) {
-            try printInstallScript(stdout_writer, "bash_prompt");
-            try bw.flush();
+            try printInstallScript(writer, "bash_prompt");
+            try buffered_stdout.flush();
             return;
         }
     }
 
-    try printPrompt(allocator, stdout_writer);
-    try bw.flush();
+    try printPrompt(allocator, writer);
+    try buffered_stdout.flush();
 }
 
 test "get_home_dir" {
