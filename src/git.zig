@@ -12,9 +12,8 @@ pub fn findRepoRoot(allocator: std.mem.Allocator, start: []const u8) ![]const u8
     var dir: fs.Dir = undefined;
 
     while (true) {
+        // 设置一个代码块，用于释放 git_dir
         {
-            // 设置一个代码块，用于释放 git_dir
-
             var git_dir = try path.resolve(allocator, &[_][]const u8{ current, ".git" });
             defer allocator.free(git_dir);
 
@@ -82,13 +81,16 @@ pub const Repo = struct {
         return self.arena_allocator.allocator();
     }
 
-    fn git(self: *Self, argv: []const []const u8) !std.ChildProcess.ExecResult {
-        return gitInDir(&self.arena_allocator, self.dir, argv);
+    fn git(self: *Self, argv: []const []const u8) ![]const u8 {
+        const cmd_result = try gitInDir(&self.arena_allocator, self.dir, argv);
+        const cmd_output = if (cmd_result.term.Exited == 0) cmd_result.stdout else cmd_result.stderr;
+
+        const result = std.mem.trim(u8, cmd_output, "\n");
+        return self.getAllocator().dupe(u8, result);
     }
 
     pub fn getCurrentBranch(self: *Self) ![]const u8 {
-        var output = try self.git(&[_][]const u8{ "rev-parse", "--abbrev-ref", "HEAD" });
-        return std.mem.trim(u8, output.stdout, "\n");
+        return self.git(&[_][]const u8{ "rev-parse", "--abbrev-ref", "HEAD" });
     }
 
     pub fn getChanges(self: *Self) ![][]const u8 {
@@ -97,7 +99,7 @@ pub const Repo = struct {
         var result = std.ArrayList([]const u8).init(self.getAllocator());
         defer result.deinit();
 
-        var splited = std.mem.split(u8, output.stdout, "\n");
+        var splited = std.mem.split(u8, output, "\n");
         while (splited.next()) |entry| {
             var clean = std.mem.trim(u8, entry, "\n");
             if (clean.len > 0) {
@@ -109,7 +111,7 @@ pub const Repo = struct {
     }
 };
 
-test "find_dot_git" {
+test "find .git dir" {
     var allocator = std.testing.allocator;
 
     var cwd = try process.getCwdAlloc(allocator);
@@ -121,7 +123,7 @@ test "find_dot_git" {
     std.debug.print("repo_root = {s}\n", .{repo_root});
 }
 
-test "exec_git_in_dir" {
+test "execute git cmd in that dir" {
     var allocator = std.testing.allocator;
 
     var cwd = try process.getCwdAlloc(allocator);
@@ -139,7 +141,7 @@ test "exec_git_in_dir" {
     std.debug.print("stdout: {s}\n", .{cmd.stdout});
 }
 
-test "test_repo_obj" {
+test "call repo object methods" {
     var allocator = std.testing.allocator;
     var repo = try Repo.discover(allocator);
     defer repo.deinit();

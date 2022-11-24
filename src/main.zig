@@ -27,19 +27,21 @@ fn printPrompt(allocator: std.mem.Allocator, writer: anytype) !void {
     if (repo) |*repo_| {
         defer repo_.deinit();
 
-        var branch_name = try repo_.getCurrentBranch();
-        var changes = try repo_.getChanges();
+        var branch_name = repo_.getCurrentBranch() catch "";
+        if (branch_name.len > 0) {
+            try writer.print(" @ ", .{});
+            try writer.print(styles.fg_yellow ++ "{s}" ++ styles.sgr_reset, .{branch_name});
 
-        try writer.print(" @ ", .{});
-        try writer.print(styles.fg_yellow ++ "{s}" ++ styles.sgr_reset, .{branch_name});
-        if (changes.len > 0) {
-            try writer.print(styles.fg_red ++ "*" ++ styles.sgr_reset, .{});
+            var changes = repo_.getChanges() catch ([_][]const u8{""})[0..];
+            if (changes.len > 0) {
+                try writer.print(styles.fg_red ++ "*" ++ styles.sgr_reset, .{});
+            }
         }
     } else |_| {
         // do nothing on error
     }
 
-    try writer.print("\n" ++ styles.sgr_reset, .{});
+    try writer.print("\n", .{});
 }
 
 pub fn main() !void {
@@ -69,7 +71,7 @@ pub fn main() !void {
     try buffered_stdout.flush();
 }
 
-test "get_home_dir" {
+test "find home dir" {
     const home_dir = try knownFolders.getPath(std.testing.allocator, .home);
     defer std.testing.allocator.free(home_dir.?);
 
