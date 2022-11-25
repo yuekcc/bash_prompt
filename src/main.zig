@@ -41,7 +41,7 @@ fn printPrompt(allocator: std.mem.Allocator, writer: anytype) !void {
         // do nothing on error
     }
 
-    try writer.print("\n", .{});
+    try writer.print("\r\n", .{});
 }
 
 pub fn main() !void {
