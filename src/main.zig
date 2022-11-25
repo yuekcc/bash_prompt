@@ -58,13 +58,12 @@ pub fn main() !void {
     var args_iter = try std.process.argsWithAllocator(allocator);
     defer args_iter.deinit();
 
-    _ = args_iter.skip();
-    while (args_iter.next()) |arg| {
-        if (std.mem.eql(u8, arg[0..], "init")) {
-            try printInstallScript(writer, "bash_prompt");
-            try buffered_stdout.flush();
-            return;
-        }
+    var exe_name = args_iter.next().?;
+    var init_flag = args_iter.next() orelse "";
+    if (std.mem.eql(u8, init_flag[0..], "init")) {
+        try printInstallScript(writer, exe_name);
+        try buffered_stdout.flush();
+        return;
     }
 
     try printPrompt(allocator, writer);
