@@ -49,7 +49,7 @@ pub fn gitInDir(arena: *std.heap.ArenaAllocator, dir: []const u8, argv: []const 
 
     return std.ChildProcess.exec(.{
         .allocator = allocator,
-        .argv = cmd_line.toOwnedSlice(),
+        .argv = try cmd_line.toOwnedSlice(),
     });
 }
 
@@ -83,7 +83,7 @@ pub const Repo = struct {
 
     fn git(self: *Self, argv: []const []const u8) ![]const u8 {
         const cmd_result = try gitInDir(&self.arena_allocator, self.dir, argv);
-        const cmd_output = if (cmd_result.term.Exited == 0) cmd_result.stdout else cmd_result.stderr;
+        const cmd_output = if (cmd_result.term.Exited == 0) cmd_result.stdout else "";
 
         const result = std.mem.trim(u8, cmd_output, "\n");
         return self.getAllocator().dupe(u8, result);
