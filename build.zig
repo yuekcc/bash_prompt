@@ -23,10 +23,11 @@ pub fn build(b: *std.build.Builder) !void {
     const exe = b.addExecutable("bash_prompt", "src/main.zig");
     exe.addPackage(vendors.knownFolders);
 
-    exe.setTarget(target);
-    exe.setBuildMode(mode);
     exe.single_threaded = true;
     exe.strip = mode != .Debug;
+    exe.want_lto = mode != .Debug;
+    exe.setBuildMode(mode);
+    exe.setTarget(target);
     exe.install();
 
     const run_cmd = exe.run();
@@ -36,13 +37,12 @@ pub fn build(b: *std.build.Builder) !void {
     }
 
     const run_step = b.step("run", "Run the app");
-
     run_step.dependOn(&run_cmd.step);
 
     const exe_tests = b.addTest("src/tests.zig");
     exe_tests.addPackage(vendors.knownFolders);
-    exe_tests.setTarget(target);
     exe_tests.setBuildMode(mode);
+    exe_tests.setTarget(target);
 
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&exe_tests.step);
