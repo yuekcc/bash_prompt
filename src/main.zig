@@ -29,11 +29,14 @@ fn printPrompt(allocator: std.mem.Allocator, writer: anytype) !void {
 
         var branch_name = repo_.getCurrentBranch() catch "";
         if (branch_name.len > 0) {
+            defer allocator.free(branch_name);
+
             try writer.print(" @ ", .{});
             try writer.print(styles.fg_yellow ++ "{s}" ++ styles.sgr_reset, .{branch_name});
 
             var changes = repo_.getChanges() catch ([_][]const u8{""})[0..];
             if (changes.len > 0) {
+                defer allocator.free(changes);
                 try writer.print(styles.fg_red ++ "*" ++ styles.sgr_reset, .{});
             }
         }
