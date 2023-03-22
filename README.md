@@ -14,7 +14,7 @@
 需要 zig 0.10+。构建过程：
 
 ```sh
-zig build -Drelease-safe
+zig build -Doptimize=ReleaseSmall
 ```
 
 在 `zig-out/bin` 可以找到相应的 bin 文件。

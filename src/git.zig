@@ -108,6 +108,35 @@ pub const Repo = struct {
 
         return result.toOwnedSlice();
     }
+
+    pub fn countChanges(self: *Self) ![]u8 {
+        var output = try self.git(&[_][]const u8{ "diff", "--numstat", "HEAD" });
+        defer self.allocator.free(output);
+
+        var result = std.ArrayList([]const u8).init(self.allocator);
+        defer result.deinit();
+
+        var splitted = std.mem.split(u8, output, "\n");
+        var insertions: u64 = 0;
+        var deletions: u64 = 0;
+        while (splitted.next()) |entry| {
+            // std.debug.print("entry = {s}\n", .{entry});
+
+            var iter = std.mem.tokenize(u8, entry, "\t");
+            var inserted = iter.next().?;
+            var deleted = iter.next().?;
+
+            // std.debug.print("inserted, deleted = {s} {s}\n", .{ inserted, deleted });
+
+            var inserted_num = try std.fmt.parseInt(u8, inserted, 10);
+            var deleted_num = try std.fmt.parseInt(u8, deleted, 10);
+
+            insertions = insertions + inserted_num;
+            deletions = deletions + deleted_num;
+        }
+
+        return std.fmt.allocPrint(self.allocator, "+{d}, -{d}", .{ insertions, deletions });
+    }
 };
 
 test "find .git dir" {
@@ -151,4 +180,8 @@ test "call repo object methods" {
     const changes = try repo.getChanges();
     defer allocator.free(changes);
     std.debug.print("current branch changes count: {d}\n", .{changes.len});
+
+    const change_count = try repo.countChanges();
+    defer allocator.free(change_count);
+    std.debug.print("count changes: {s}\n", .{change_count});
 }

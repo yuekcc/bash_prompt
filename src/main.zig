@@ -20,6 +20,8 @@ fn printPrompt(allocator: std.mem.Allocator, writer: anytype) !void {
     var updated_pwd = try std.mem.replaceOwned(u8, allocator, pwd, home_dir.?, "~");
     defer allocator.free(updated_pwd);
 
+    _ = std.mem.replace(u8, updated_pwd, "\\", "/", updated_pwd);
+
     try writer.print("\n", .{});
     try writer.print(styles.fg_blue ++ "{s}" ++ styles.sgr_reset, .{updated_pwd});
 
@@ -38,6 +40,11 @@ fn printPrompt(allocator: std.mem.Allocator, writer: anytype) !void {
             if (changes.len > 0) {
                 defer allocator.free(changes);
                 try writer.print(styles.fg_red ++ "*" ++ styles.sgr_reset, .{});
+
+                const change_count = repo_.countChanges() catch "";
+                defer allocator.free(change_count);
+
+                try writer.print(" {s}", .{change_count});
             }
         }
     } else |_| {
@@ -48,14 +55,16 @@ fn printPrompt(allocator: std.mem.Allocator, writer: anytype) !void {
 }
 
 pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer {
-        _ = gpa.deinit();
-    }
-    var allocator = gpa.allocator();
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
 
-    var stdout = std.io.getStdOut().writer();
-    var buffered_stdout = std.io.bufferedWriter(stdout);
+    const allocator = arena.allocator();
+
+    var stdout = std.io.getStdOut();
+    defer stdout.close();
+
+    var stdout_writer = stdout.writer();
+    var buffered_stdout = std.io.bufferedWriter(stdout_writer);
     var writer = buffered_stdout.writer();
 
     var args_iter = try std.process.argsWithAllocator(allocator);
