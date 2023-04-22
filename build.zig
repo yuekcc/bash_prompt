@@ -20,9 +20,9 @@ pub fn build(b: *std.Build) !void {
     app.strip = optimize != .Debug;
     app.want_lto = optimize != .Debug;
     app.addModule("known-folders", known_folders_module);
-    app.install();
+    b.installArtifact(app);
 
-    const run_cmd = app.run();
+    const run_cmd = b.addRunArtifact(app);
     run_cmd.step.dependOn(b.getInstallStep());
     if (b.args) |args| {
         run_cmd.addArgs(args);
