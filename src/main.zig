@@ -22,36 +22,30 @@ fn printPrompt(allocator: std.mem.Allocator, writer: anytype) !void {
 
     _ = std.mem.replace(u8, updated_pwd, "\\", "/", updated_pwd);
 
-    try writer.print("\n", .{});
-    try writer.print(styles.fg_blue ++ "{s}" ++ styles.sgr_reset, .{updated_pwd});
-
-    var repo = Repo.discover(allocator);
-    if (repo) |*repo_| {
-        defer repo_.deinit();
-
-        var branch_name = repo_.getCurrentBranch() catch "";
-        if (branch_name.len > 0) {
-            defer allocator.free(branch_name);
-
-            try writer.print(" @ ", .{});
-            try writer.print(styles.fg_yellow ++ "{s}" ++ styles.sgr_reset, .{branch_name});
-
-            var changes = repo_.getChanges() catch ([_][]const u8{""})[0..];
-            if (changes.len > 0) {
-                defer allocator.free(changes);
-                try writer.print(styles.fg_red ++ "*" ++ styles.sgr_reset, .{});
-
-                const change_count = repo_.countChanges() catch "";
-                defer allocator.free(change_count);
-
-                try writer.print(" {s}", .{change_count});
-            }
-        }
-    } else |_| {
-        // do nothing on error
-    }
-
     try writer.print("\r\n", .{});
+    try writer.print(styles.fg_blue ++ "{s}" ++ styles.sgr_reset, .{updated_pwd});
+    defer writer.print("\r\n", .{}) catch @panic("unable to write data to stdout");
+
+    var repo = Repo.discover(allocator) catch return;
+    defer repo.deinit();
+
+    var branch_name = repo.getCurrentBranch() catch return;
+    defer allocator.free(branch_name);
+    if (branch_name.len > 0) {
+        try writer.print(" @ ", .{});
+        try writer.print(styles.fg_yellow ++ "{s}" ++ styles.sgr_reset, .{branch_name});
+
+        var changes = repo.getChanges() catch return;
+        defer allocator.free(changes);
+        if (changes.len > 0) {
+            try writer.print(styles.fg_red ++ "*" ++ styles.sgr_reset, .{});
+
+            const change_count = repo.countChanges() catch "";
+            defer allocator.free(change_count);
+
+            try writer.print(" {s}", .{change_count});
+        }
+    }
 }
 
 pub fn main() !void {
@@ -63,9 +57,9 @@ pub fn main() !void {
     var stdout = std.io.getStdOut();
     defer stdout.close();
 
-    var stdout_writer = stdout.writer();
-    var buffered_stdout = std.io.bufferedWriter(stdout_writer);
+    var buffered_stdout = std.io.bufferedWriter(stdout.writer());
     var writer = buffered_stdout.writer();
+    defer buffered_stdout.flush() catch @panic("unable to write data to stdout");
 
     var args_iter = try std.process.argsWithAllocator(allocator);
     defer args_iter.deinit();
@@ -74,12 +68,10 @@ pub fn main() !void {
     var init_flag = args_iter.next() orelse "";
     if (std.mem.eql(u8, init_flag[0..], "init")) {
         try printInstallScript(writer, exe_name);
-        try buffered_stdout.flush();
         return;
     }
 
     try printPrompt(allocator, writer);
-    try buffered_stdout.flush();
 }
 
 test "find home dir" {
