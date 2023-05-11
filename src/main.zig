@@ -4,13 +4,14 @@ const knownFolders = @import("known-folders");
 
 const styles = @import("styles.zig").styles;
 const Repo = @import("git.zig").Repo;
+const ErrorIgnoreWriter = @import("ErrorIgnoredWriter.zig");
 
-fn printInstallScript(writer: anytype, exe_name: []const u8) !void {
+fn printInstallScript(writer: *ErrorIgnoreWriter, exe_name: []const u8) !void {
     comptime var script = "\nPROMPT_COMMAND=\"{s}\"; export PROMPT_COMMAND; PS1=\"\\$ \";";
-    try writer.print(script, .{exe_name});
+    writer.print(script, .{exe_name});
 }
 
-fn printPrompt(allocator: std.mem.Allocator, writer: anytype) !void {
+fn printPrompt(allocator: std.mem.Allocator, writer: *ErrorIgnoreWriter) !void {
     var pwd = try process.getCwdAlloc(allocator);
     defer allocator.free(pwd);
 
@@ -22,9 +23,9 @@ fn printPrompt(allocator: std.mem.Allocator, writer: anytype) !void {
 
     _ = std.mem.replace(u8, updated_pwd, "\\", "/", updated_pwd);
 
-    try writer.print("\r\n", .{});
-    try writer.print(styles.fg_blue ++ "{s}" ++ styles.sgr_reset, .{updated_pwd});
-    defer writer.print("\r\n", .{}) catch @panic("unable to write data to stdout");
+    writer.print("\r\n", .{});
+    writer.print(styles.fg_blue ++ "{s}" ++ styles.sgr_reset, .{updated_pwd});
+    defer writer.print("\r\n", .{});
 
     var repo = Repo.discover(allocator) catch return;
     defer repo.deinit();
@@ -32,18 +33,18 @@ fn printPrompt(allocator: std.mem.Allocator, writer: anytype) !void {
     var branch_name = repo.getCurrentBranch() catch return;
     defer allocator.free(branch_name);
     if (branch_name.len > 0) {
-        try writer.print(" @ ", .{});
-        try writer.print(styles.fg_yellow ++ "{s}" ++ styles.sgr_reset, .{branch_name});
+        writer.print(" @ ", .{});
+        writer.print(styles.fg_yellow ++ "{s}" ++ styles.sgr_reset, .{branch_name});
 
         var changes = repo.getChanges() catch return;
         defer allocator.free(changes);
         if (changes.len > 0) {
-            try writer.print(styles.fg_red ++ "*" ++ styles.sgr_reset, .{});
+            writer.print(styles.fg_red ++ "*" ++ styles.sgr_reset, .{});
 
             const change_count = repo.countChanges() catch "";
             defer allocator.free(change_count);
 
-            try writer.print(" {s}", .{change_count});
+            writer.print(" {s}", .{change_count});
         }
     }
 }
@@ -51,15 +52,10 @@ fn printPrompt(allocator: std.mem.Allocator, writer: anytype) !void {
 pub fn main() !void {
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
-
     const allocator = arena.allocator();
 
-    var stdout = std.io.getStdOut();
-    defer stdout.close();
-
-    var buffered_stdout = std.io.bufferedWriter(stdout.writer());
-    var writer = buffered_stdout.writer();
-    defer buffered_stdout.flush() catch @panic("unable to write data to stdout");
+    var writer = ErrorIgnoreWriter.init();
+    defer writer.close();
 
     var args_iter = try std.process.argsWithAllocator(allocator);
     defer args_iter.deinit();
@@ -67,11 +63,11 @@ pub fn main() !void {
     var exe_name = args_iter.next().?;
     var init_flag = args_iter.next() orelse "";
     if (std.mem.eql(u8, init_flag[0..], "init")) {
-        try printInstallScript(writer, exe_name);
+        try printInstallScript(&writer, exe_name);
         return;
     }
 
-    try printPrompt(allocator, writer);
+    try printPrompt(allocator, &writer);
 }
 
 test "find home dir" {
