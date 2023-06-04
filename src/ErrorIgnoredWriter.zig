@@ -17,12 +17,12 @@ pub fn init() Self {
 }
 
 pub fn close(self: *Self) void {
-    self._buffered_writer.flush() catch @panic("unable to write data to STDOUT");
+    self._buffered_writer.flush() catch unreachable;
     self._stdout.close();
 }
 
 pub fn print(self: *Self, comptime format: []const u8, args: anytype) void {
-    self._buffered_writer.writer().print(format, args) catch @panic("unable to write data to STDOUT");
+    self._buffered_writer.writer().print(format, args) catch unreachable;
 }
 
 test "ErrorIgnoreWriter" {
