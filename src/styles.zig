@@ -31,9 +31,9 @@ const DefaultColor = enum(u8) {
 pub const styles = struct {
     pub const sgr_reset = CSI ++ "0m";
 
-    pub const fg_red = fmt.comptimePrint(CSI ++ "{d}m", .{@enumToInt(DefaultColor.red)});
-    pub const fg_blue = fmt.comptimePrint(CSI ++ "{d}m", .{@enumToInt(DefaultColor.blue)});
-    pub const fg_yellow = fmt.comptimePrint(CSI ++ "{d}m", .{@enumToInt(DefaultColor.yellow)});
+    pub const fg_red = fmt.comptimePrint(CSI ++ "{d}m", .{@intFromEnum(DefaultColor.red)});
+    pub const fg_blue = fmt.comptimePrint(CSI ++ "{d}m", .{@intFromEnum(DefaultColor.blue)});
+    pub const fg_yellow = fmt.comptimePrint(CSI ++ "{d}m", .{@intFromEnum(DefaultColor.yellow)});
 };
 
 test "colors" {
