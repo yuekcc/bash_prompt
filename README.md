@@ -11,10 +11,10 @@
 
 ## 构建
 
-需要 zig 0.10+。构建过程：
+需要 zig 0.11+。构建过程：
 
 ```sh
-zig build -Doptimize=ReleaseSmall
+zig build -Doptimize=ReleaseFast
 ```
 
 在 `zig-out/bin` 可以找到相应的 bin 文件。
