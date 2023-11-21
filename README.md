@@ -11,7 +11,7 @@
 
 ## 构建
 
-需要 zig 0.11+。构建过程：
+需要 zig 0.12+。构建过程：
 
 ```sh
 zig build -Doptimize=ReleaseFast
