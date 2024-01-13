@@ -11,10 +11,18 @@
 
 ## 构建
 
-需要 zig 0.12+。构建过程：
+构建需要 [特挑 zig 0.12 nightly](https://machengine.org/about/nominated-zig/)。当前使用版本 `0.12.0-dev.2063+804cee3b9`。
+
+使用可以 zigup 安装：
 
 ```sh
-zig build -Doptimize=ReleaseFast
+zigup 0.12.0-dev.2063+804cee3b9
+```
+
+构建过程：
+
+```sh
+zig build -Doptimize=ReleaseSafe
 ```
 
 在 `zig-out/bin` 可以找到相应的 bin 文件。
@@ -28,12 +36,6 @@ bash_prompt init >> ~/.bashrc
 ```
 
 `bash_prompt.exe` 可以在 release 页面中找到。
-
-## 设计文档
-
-见 [RFCs]
-
-[RFCs]: https://github.com/yuekcc/bash_prompt/tree/main/rfcs
 
 ## License
 
