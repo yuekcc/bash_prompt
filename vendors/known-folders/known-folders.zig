@@ -32,7 +32,7 @@ pub const KnownFolderConfig = struct {
 
 /// Returns a directory handle, or, if the folder does not exist, `null`.
 pub fn open(allocator: std.mem.Allocator, folder: KnownFolder, args: std.fs.Dir.OpenDirOptions) (std.fs.Dir.OpenError || Error)!?std.fs.Dir {
-    var path_or_null = try getPath(allocator, folder);
+    const path_or_null = try getPath(allocator, folder);
     if (path_or_null) |path| {
         defer allocator.free(path);
 
@@ -58,19 +58,29 @@ pub fn getPath(allocator: std.mem.Allocator, folder: KnownFolder) Error!?[]const
 
     switch (builtin.os.tag) {
         .windows => {
+            const funcs = struct {
+                extern "shell32" fn SHGetKnownFolderPath(
+                    rfid: *const std.os.windows.GUID,
+                    dwFlags: std.os.windows.DWORD,
+                    hToken: ?std.os.windows.HANDLE,
+                    ppszPathL: *std.os.windows.PWSTR,
+                ) callconv(std.os.windows.WINAPI) std.os.windows.HRESULT;
+                extern "ole32" fn CoTaskMemFree(pv: std.os.windows.LPVOID) callconv(std.os.windows.WINAPI) void;
+            };
+
             const folder_spec = windows_folder_spec.get(folder);
 
             switch (folder_spec) {
                 .by_guid => |guid| {
                     var dir_path_ptr: [*:0]u16 = undefined;
-                    switch (std.os.windows.shell32.SHGetKnownFolderPath(
+                    switch (funcs.SHGetKnownFolderPath(
                         &guid,
                         std.os.windows.KF_FLAG_CREATE, // TODO: Chose sane option here?
                         null,
                         &dir_path_ptr,
                     )) {
                         std.os.windows.S_OK => {
-                            defer std.os.windows.ole32.CoTaskMemFree(@ptrCast(dir_path_ptr));
+                            defer funcs.CoTaskMemFree(@ptrCast(dir_path_ptr));
                             const global_dir = std.unicode.utf16leToUtf8Alloc(allocator, std.mem.span(dir_path_ptr)) catch |err| switch (err) {
                                 error.UnexpectedSecondSurrogateHalf => return null,
                                 error.ExpectedSecondSurrogateHalf => return null,
@@ -177,7 +187,7 @@ fn getPathXdg(allocator: std.mem.Allocator, arena: *std.heap.ArenaAllocator, fol
                     return error.ParseError;
                 }
 
-                var subdir = line[start..end];
+                const subdir = line[start..end];
 
                 break :env_opt try std.mem.concat(arena.allocator(), u8, &[_][]const u8{ home, subdir });
             }
@@ -338,7 +348,7 @@ comptime {
 
 test "query each known folders" {
     inline for (std.meta.fields(KnownFolder)) |fld| {
-        var path_or_null = try getPath(std.testing.allocator, @field(KnownFolder, fld.name));
+        const path_or_null = try getPath(std.testing.allocator, @field(KnownFolder, fld.name));
         if (path_or_null) |path| {
             // TODO: Remove later
             std.debug.print("{s} => '{s}'\n", .{ fld.name, path });
