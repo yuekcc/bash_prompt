@@ -6,7 +6,7 @@ pub fn build(b: *std.Build) !void {
     const optimize = b.standardOptimizeOption(.{});
 
     const known_folders_module = b.createModule(.{
-        .source_file = .{ .path = "vendors/known-folders/known-folders.zig" },
+        .root_source_file = .{ .path = "vendors/known-folders/known-folders.zig" },
     });
 
     const app = b.addExecutable(.{
@@ -14,12 +14,12 @@ pub fn build(b: *std.Build) !void {
         .root_source_file = .{ .path = "src/main.zig" },
         .target = target,
         .optimize = optimize,
+        .strip = true,
+        .single_threaded = true,
     });
 
-    app.single_threaded = true;
-    app.strip = optimize != .Debug;
-    app.want_lto = optimize != .Debug;
-    app.addModule("known-folders", known_folders_module);
+    app.root_module.addImport("known-folders", known_folders_module);
+
     b.installArtifact(app);
 
     const run_cmd = b.addRunArtifact(app);
@@ -32,7 +32,7 @@ pub fn build(b: *std.Build) !void {
     run_step.dependOn(&run_cmd.step);
 
     const app_tests = b.addTest(.{ .root_source_file = .{ .path = "src/tests.zig" } });
-    app_tests.addModule("known-folders", known_folders_module);
+    app_tests.root_module.addImport("known-folders", known_folders_module);
 
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&app_tests.step);

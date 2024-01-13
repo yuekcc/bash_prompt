@@ -8,7 +8,7 @@ const Self = @This();
 
 pub fn init() Self {
     var stdout = std.io.getStdOut();
-    var buffered_writer = std.io.bufferedWriter(stdout.writer());
+    const buffered_writer = std.io.bufferedWriter(stdout.writer());
 
     return .{
         ._stdout = stdout,
