@@ -4,7 +4,7 @@ Copy from [https://github.com/ziglibs/known-folders](https://github.com/ziglibs/
 
 ## VERSION
 
-https://github.com/ziglibs/known-folders/commit/fa6271bad6bdc5fb1173824a88855b9268ea6f3d
+https://github.com/ziglibs/known-folders/commit/055c95a717c5b54a0fc52ff5f370439c28eb2e73
 
 ## LICENSE
 

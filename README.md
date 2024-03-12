@@ -11,12 +11,12 @@
 
 ## 构建
 
-构建需要 [特挑 zig 0.12 nightly](https://machengine.org/about/nominated-zig/)。当前使用版本 `0.12.0-dev.2063+804cee3b9`。
+构建需要 [特挑 zig 0.12 nightly](https://machengine.org/about/nominated-zig/)。
 
 使用可以 zigup 安装：
 
 ```sh
-zigup 0.12.0-dev.2063+804cee3b9
+zigup 0.12.0-dev.3180+83e578a18
 ```
 
 构建过程：
