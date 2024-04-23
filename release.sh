@@ -3,7 +3,7 @@
 set -exo pipefail
 
 rm -rf zig-cache zig-out
-zig build -Doptimize=ReleaseFast
+zig build --release=fast
 
 ls -alh zig-out/bin
 

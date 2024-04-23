@@ -53,7 +53,7 @@ git 仓库状态分别对应两项数据：
 1. 当前在哪个分支，通过 `git rev-parse --abbrev-ref HEAD` 命令获取。
 2. 是否有变更，通过 `git status --porcelain` 命令获取。
 
-展示时，使用如 `master*` 方式来提示。`master` 是分支名称，未创建分支时展示为 `HEAD`；`*` 表示仓库中存在未提示的变更，没有变更时，不展示。__如果不是 git 仓库，则都不展示。__
+展示时，使用如 `master*` 方式来提示。`master` 是分支名称，未创建分支时展示为 `HEAD`；`*` 表示仓库中存在未提示的变更，没有变更时，不展示。**如果不是 git 仓库，则都不展示。**
 
 比如在普通目录：
 
@@ -120,7 +120,9 @@ zig 程序的入口是 `fn main()` 函数。main 函数的主要功能是向 std
 ## 未解决的问题
 
 1. ~~starship 是通过在 .bashrc 执行 `eval $(starship env bash)` 来简化配置，这点目前没有实现。~~ - 通过命令行参数 `bash_prompt init` 来生成 bash 配置。
-2. zig 对于部分字符的输出有 bug（似乎只在 windows 平台有问题）。比如输入 `§` 在 windows 上，显示为 `搂`。
+2. ~~zig 对于部分字符的输出有 bug（似乎只在 windows 平台有问题）。比如输入 `§` 在 windows 上，显示为 `搂`。~~ - Windows 上可以设置[默认的 UTF-8][use_utf_8_default] 输出。
+
+[use_utf_8_default]: https://course.ziglang.cc/environment/install-environment#windows
 
 ## 其他
 
