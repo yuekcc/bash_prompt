@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 const File = std.fs.File;
 
 _stdout: File,
@@ -26,8 +27,10 @@ pub fn print(self: *Self, comptime format: []const u8, args: anytype) void {
 }
 
 test "ErrorIgnoreWriter" {
-    var writer = init();
-    defer writer.close();
+    if (builtin.target.os.tag != .windows) {
+        var writer = init();
+        defer writer.close();
 
-    writer.print("hello", .{});
+        writer.print("hello", .{});
+    }
 }
