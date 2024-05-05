@@ -1,0 +1,23 @@
+.{
+    .name = "base_prompt",
+    .version = "0.0.1",
+    .paths = .{
+        "LICENSE",
+        "README.md",
+        "src/ErrorIgnoredWriter.zig",
+        "src/git.zig",
+        "src/main.zig",
+        "src/styles.zig",
+        "src/tests.zig",
+    },
+    .dependencies = .{
+        .string = .{
+            .url = "https://github.com/JakubSzark/zig-string/archive/14a052fc096f6bd172e07a1e4daa1c1a6d6f7bb2.tar.gz",
+            .hash = "12201b6adb39801a0956ab8450fcc96417752c19b690a00603bb10f3d802095b2426",
+        },
+        .@"known-folders" = .{
+            .url = "https://github.com/ziglibs/known-folders/archive/bf79988adcfce166f848e4b11e718c1966365329.tar.gz",
+            .hash = "12201314cffeb40c5e4e3da166217d2c74628c74486414aaf97422bcd2279915b9fd",
+        },
+    },
+}
