@@ -35,11 +35,13 @@ pub fn build(b: *std.Build) !void {
 
     // zig build test
     {
-        const app_tests = b.addTest(.{ .root_source_file = .{ .path = "src/tests.zig" } });
-        app_tests.root_module.addImport("string", string.module("string"));
-        app_tests.root_module.addImport("known-folders", known_folders.module("known-folders"));
-
         const test_step = b.step("test", "Run unit tests");
-        test_step.dependOn(&app_tests.step);
+
+        const tests = b.addTest(.{ .root_source_file = .{ .path = "src/tests.zig" } });
+        tests.root_module.addImport("string", string.module("string"));
+        tests.root_module.addImport("known-folders", known_folders.module("known-folders"));
+        const run_tests = b.addRunArtifact(tests);
+
+        test_step.dependOn(&run_tests.step);
     }
 }
