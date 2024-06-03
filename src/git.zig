@@ -38,7 +38,7 @@ pub fn findRepoRoot(allocator: std.mem.Allocator, start: []const u8) ![]const u8
 }
 
 // 用 arena 分配器解决内部内存释放问题
-pub fn gitInDir(allocator: std.mem.Allocator, dir: []const u8, argv: []const []const u8) !std.ChildProcess.RunResult {
+pub fn gitInDir(allocator: std.mem.Allocator, dir: []const u8, argv: []const []const u8) !process.Child.RunResult {
     var cmd_line = std.ArrayList([]const u8).init(allocator);
     defer cmd_line.deinit();
 
@@ -48,7 +48,7 @@ pub fn gitInDir(allocator: std.mem.Allocator, dir: []const u8, argv: []const []c
     const combined = try cmd_line.toOwnedSlice();
     defer allocator.free(combined);
 
-    return std.ChildProcess.run(.{
+    return process.Child.run(.{
         .allocator = allocator,
         .argv = combined,
     });

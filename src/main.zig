@@ -2,11 +2,11 @@ const std = @import("std");
 const builtin = @import("builtin");
 const process = std.process;
 const knownFolders = @import("known-folders");
-const String = @import("string").String;
 
 const styles = @import("styles.zig").styles;
 const Repo = @import("git.zig").Repo;
 const ErrorIgnoreWriter = @import("ErrorIgnoredWriter.zig");
+const utf8 = @import("utf8.zig");
 
 const CliFlag = struct {
     exe_name: []const u8,
@@ -50,8 +50,7 @@ fn printPrompt(p_allocator: std.mem.Allocator, writer: *ErrorIgnoreWriter, cli_f
                 continue;
             }
 
-            const str = try String.init_with_contents(allocator, path_buf.items[i]);
-            path_buf.items[i] = try allocator.dupe(u8, str.charAt(0).?);
+            path_buf.items[i] = try allocator.dupe(u8, utf8.charAt(path_buf.items[i], 0).?);
         }
     }
 
