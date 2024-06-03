@@ -12,7 +12,7 @@
 
 ## 构建
 
-构建需要 [特挑 zig 0.12 nightly](https://machengine.org/about/nominated-zig/)。
+构建需要 [0.13.0-dev.351+64ef45eb0](https://machengine.org/about/nominated-zig/)。
 
 构建过程：
 
