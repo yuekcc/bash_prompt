@@ -12,7 +12,7 @@
     },
     .dependencies = .{
         .@"known-folders" = .{
-            .url = "https://github.com/ziglibs/known-folders/archive/0ad514dcfb7525e32ae349b9acc0a53976f3a9fa.tar.gz",
+            .url = "git+https://github.com/ziglibs/known-folders.git#0ad514dcfb7525e32ae349b9acc0a53976f3a9fa",
             .hash = "12209cde192558f8b3dc098ac2330fc2a14fdd211c5433afd33085af75caa9183147",
         },
     },
