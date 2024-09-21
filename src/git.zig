@@ -98,7 +98,7 @@ pub const Repo = struct {
         var result = std.ArrayList([]const u8).init(self.allocator);
         defer result.deinit();
 
-        var splitted = std.mem.split(u8, output, "\n");
+        var splitted = std.mem.splitSequence(u8, output, "\n");
         while (splitted.next()) |entry| {
             const clean = std.mem.trim(u8, entry, "\n");
             if (clean.len > 0) {
@@ -116,13 +116,13 @@ pub const Repo = struct {
         var result = std.ArrayList([]const u8).init(self.allocator);
         defer result.deinit();
 
-        var splits = std.mem.split(u8, output, "\n");
+        var splits = std.mem.splitSequence(u8, output, "\n");
         var insertions: u64 = 0;
         var deletions: u64 = 0;
         while (splits.next()) |entry| {
             // std.debug.print("entry = {s}\n", .{entry});
 
-            var iter = std.mem.tokenize(u8, entry, "\t");
+            var iter = std.mem.tokenizeSequence(u8, entry, "\t");
             const inserted = iter.next().?;
             const deleted = iter.next().?;
 

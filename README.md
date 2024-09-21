@@ -25,7 +25,7 @@
 
 ## 编译
 
-编译需要 [0.13.0-dev.351+64ef45eb0](https://machengine.org/docs/nominated-zig/)。
+编译需要 ~~[0.13.0-dev.351+64ef45eb0](https://machengine.org/docs/nominated-zig/)~~ **0.14.0-dev.1632+d83a3f174**。
 
 编译过程：
 

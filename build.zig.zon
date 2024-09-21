@@ -1,6 +1,7 @@
 .{
     .name = "base_prompt",
     .version = "0.0.1",
+    .minimum_zig_version = "0.14.0",
     .paths = .{
         "LICENSE",
         "README.md",
@@ -12,8 +13,8 @@
     },
     .dependencies = .{
         .@"known-folders" = .{
-            .url = "git+https://github.com/ziglibs/known-folders.git#0ad514dcfb7525e32ae349b9acc0a53976f3a9fa",
-            .hash = "12209cde192558f8b3dc098ac2330fc2a14fdd211c5433afd33085af75caa9183147",
+            .url = "git+https://github.com/ziglibs/known-folders.git#1cceeb70e77dec941a4178160ff6c8d05a74de6f",
+            .hash = "12205f5e7505c96573f6fc5144592ec38942fb0a326d692f9cddc0c7dd38f9028f29",
         },
     },
 }
