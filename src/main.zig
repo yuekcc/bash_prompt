@@ -1,7 +1,7 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const process = std.process;
-const knownFolders = @import("known-folders");
+const known_folders = @import("known_folders");
 
 const styles = @import("styles.zig").styles;
 const Repo = @import("git.zig").Repo;
@@ -33,7 +33,7 @@ fn printPrompt(p_allocator: std.mem.Allocator, writer: *ErrorIgnoreWriter, cli_f
     const allocator = arena.allocator();
 
     const cwd = try process.getCwdAlloc(allocator);
-    const home_dir = try knownFolders.getPath(allocator, .home);
+    const home_dir = try known_folders.getPath(allocator, .home);
     const updated_pwd = try std.mem.replaceOwned(u8, allocator, cwd, home_dir.?, "~");
 
     var iter = std.mem.splitSequence(u8, updated_pwd, getPathDelimiter());
@@ -122,7 +122,7 @@ pub fn main() !void {
 }
 
 test "find home dir" {
-    const home_dir = try knownFolders.getPath(std.testing.allocator, .home);
+    const home_dir = try known_folders.getPath(std.testing.allocator, .home);
     defer std.testing.allocator.free(home_dir.?);
 
     std.debug.print("home dir: {s}\n", .{home_dir.?});
