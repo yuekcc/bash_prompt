@@ -12,6 +12,7 @@ const CliFlag = struct {
     exe_name: []const u8,
     show_init: bool,
     use_short_path: bool,
+    use_env: bool,
 };
 
 fn getPathDelimiter() []const u8 {
@@ -27,58 +28,82 @@ fn printInstallScript(writer: *ErrorIgnoreWriter, exe_name: []const u8) !void {
     writer.print(script, .{exe_name});
 }
 
-fn printPrompt(p_allocator: std.mem.Allocator, writer: *ErrorIgnoreWriter, cli_flag: *CliFlag) !void {
-    var arena = std.heap.ArenaAllocator.init(p_allocator);
-    defer arena.deinit();
-    const allocator = arena.allocator();
+const ShellPrompt = struct {
+    allocator: std.mem.Allocator,
+    output: *ErrorIgnoreWriter,
+    use_short_path: bool,
+    use_env: bool,
 
-    const cwd = try process.getCwdAlloc(allocator);
-    const home_dir = try known_folders.getPath(allocator, .home);
-    const updated_pwd = try std.mem.replaceOwned(u8, allocator, cwd, home_dir.?, "~");
+    const Self = @This();
 
-    var iter = std.mem.splitSequence(u8, updated_pwd, getPathDelimiter());
-    var path_buf = std.ArrayList([]const u8).init(allocator);
+    pub fn init(allocator: std.mem.Allocator, writer: *ErrorIgnoreWriter, cli_flag: *CliFlag) ShellPrompt {
+        const self: Self = .{ .allocator = allocator, .output = writer, .use_env = cli_flag.use_env, .use_short_path = cli_flag.use_short_path };
 
-    while (iter.next()) |p| {
-        const str = try allocator.dupe(u8, p);
-        try path_buf.append(str);
+        return self;
     }
 
-    if (cli_flag.use_short_path) {
-        for (0..path_buf.items.len) |i| {
-            if (i == 0 or i == path_buf.items.len - 1) {
-                continue;
+    pub fn deinit(_: *Self) void {}
+
+    pub fn print(self: *Self) !void {
+        try self.printWorkingDir();
+        try self.printGitStatus();
+        try self.printEnding();
+    }
+
+    fn printEnding(self: *Self) !void {
+        self.output.print("\r\n", .{});
+    }
+
+    fn printWorkingDir(self: *Self) !void {
+        const cwd = try process.getCwdAlloc(self.allocator);
+        const home_dir = try known_folders.getPath(self.allocator, .home);
+        const updated_pwd = try std.mem.replaceOwned(u8, self.allocator, cwd, home_dir.?, "~");
+
+        var iter = std.mem.splitSequence(u8, updated_pwd, getPathDelimiter());
+        var path_buf = std.ArrayList([]const u8).init(self.allocator);
+
+        while (iter.next()) |p| {
+            const str = try self.allocator.dupe(u8, p);
+            try path_buf.append(str);
+        }
+
+        if (self.use_short_path) {
+            for (0..path_buf.items.len) |i| {
+                if (i == 0 or i == path_buf.items.len - 1) {
+                    continue;
+                }
+
+                path_buf.items[i] = try self.allocator.dupe(u8, utf8.charAt(path_buf.items[i], 0).?);
             }
-
-            path_buf.items[i] = try allocator.dupe(u8, utf8.charAt(path_buf.items[i], 0).?);
         }
+
+        const formatted = try path_buf.toOwnedSlice();
+        const pwd_display = try std.mem.join(self.allocator, "/", formatted);
+
+        self.output.print("\r\n", .{});
+        self.output.print(styles.fg_blue ++ "{s}" ++ styles.sgr_reset, .{pwd_display});
     }
 
-    const formated = try path_buf.toOwnedSlice();
-    const pwd_display = try std.mem.join(allocator, "/", formated);
+    fn printGitStatus(self: *Self) !void {
+        var repo = Repo.discover(self.allocator) catch return;
+        defer repo.deinit();
 
-    writer.print("\r\n", .{});
-    writer.print(styles.fg_blue ++ "{s}" ++ styles.sgr_reset, .{pwd_display});
-    defer writer.print("\r\n", .{});
+        const branch_name = repo.getCurrentBranch() catch return;
+        if (branch_name.len > 0) {
+            self.output.print(" @ ", .{});
+            self.output.print(styles.fg_yellow ++ "{s}" ++ styles.sgr_reset, .{branch_name});
 
-    var repo = Repo.discover(allocator) catch return;
-    defer repo.deinit();
+            const changes = repo.getChanges() catch return;
+            if (changes.len > 0) {
+                self.output.print(styles.fg_red ++ "*" ++ styles.sgr_reset, .{});
 
-    const branch_name = repo.getCurrentBranch() catch return;
-    if (branch_name.len > 0) {
-        writer.print(" @ ", .{});
-        writer.print(styles.fg_yellow ++ "{s}" ++ styles.sgr_reset, .{branch_name});
+                const change_count = repo.countChanges() catch "";
 
-        const changes = repo.getChanges() catch return;
-        if (changes.len > 0) {
-            writer.print(styles.fg_red ++ "*" ++ styles.sgr_reset, .{});
-
-            const change_count = repo.countChanges() catch "";
-
-            writer.print(" {s}", .{change_count});
+                self.output.print(" {s}", .{change_count});
+            }
         }
     }
-}
+};
 
 fn parseCliFlag(allocator: std.mem.Allocator) !*CliFlag {
     var args_iter = try std.process.argsWithAllocator(allocator);
@@ -94,8 +119,10 @@ fn parseCliFlag(allocator: std.mem.Allocator) !*CliFlag {
     while (args_iter.next()) |flag| {
         if (std.mem.eql(u8, flag, "init")) {
             out.show_init = true;
-        } else if (std.mem.eql(u8, flag, "short")) {
+        } else if (std.mem.eql(u8, flag, "--short")) {
             out.use_short_path = true;
+        } else if (std.mem.eql(u8, flag, "--show-env")) {
+            out.use_env = true;
         }
     }
 
@@ -118,7 +145,9 @@ pub fn main() !void {
         return;
     }
 
-    try printPrompt(allocator, &writer, cli_flag);
+    var prompt = ShellPrompt.init(allocator, &writer, cli_flag);
+    try prompt.print();
+    prompt.deinit();
 }
 
 test "find home dir" {
