@@ -47,6 +47,7 @@ const ShellPrompt = struct {
     pub fn print(self: *Self) !void {
         try self.printWorkingDir();
         try self.printGitStatus();
+        try self.printEnv();
         try self.printEnding();
     }
 
@@ -82,6 +83,21 @@ const ShellPrompt = struct {
 
         self.output.print("\r\n", .{});
         self.output.print(styles.fg_blue ++ "{s}" ++ styles.sgr_reset, .{pwd_display});
+    }
+
+    fn printEnv(self: *Self) !void {
+        var env_map = try process.getEnvMap(self.allocator);
+        defer env_map.deinit();
+
+        var iter = env_map.iterator();
+        while (iter.next()) |entry| {
+            const key = entry.key_ptr.*;
+            const value = entry.value_ptr.*;
+
+            if (std.mem.startsWith(u8, key, "BS_ENV_")) {
+                self.output.print(" ({s})", .{value});
+            }
+        }
     }
 
     fn printGitStatus(self: *Self) !void {
@@ -132,7 +148,7 @@ fn parseCliFlag(allocator: std.mem.Allocator) !*CliFlag {
 pub fn main() !void {
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
-    const allocator = arena.allocator();
+    var allocator = arena.allocator();
 
     var writer = ErrorIgnoreWriter.init();
     defer writer.close();
