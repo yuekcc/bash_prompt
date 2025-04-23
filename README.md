@@ -21,11 +21,28 @@
 首先将 `bash_prompt` 放入系统 PATH 目录中。然后在命令行中执行：
 
 - `bash_prompt init`: 生成 bash 配置。可以使用 `bash_prompt init >> ~/.bashrc` 增加到 `~/.bashrc`
-- `bash_prompt short`: 使用缩略路径
+- `bash_prompt --short`: 使用缩略路径
+- `bash_prompt --venv`: 显示 `BP_ENV_XXXX` 环境变量，对于多版本的 python/node/java 可以使用简单的 bash 脚本切换版本。通过设置 `BP_ENV_JDK_VERSION` 可以在 bash prompt 中展示相应的版本号
+
+### 手工版本管理
+
+在 ~/jdk21.sh 中：
+
+```bash
+BP_ENV_JDK_VERSION=JDK21
+JAVA_HOME=/z/jdk21
+PATH=$JAVA_HOME/bin:$PATH
+
+export JAVA_HOME
+export PATH
+export BP_ENV_JDK_VERSION
+```
+
+先设置 `. ~/jdk21` 就可以将环境中的 JDK 切换为 JDK21。这个实现灵感来自 python venv。
 
 ## 编译
 
-编译需要 ~~[0.13.0-dev.351+64ef45eb0](https://machengine.org/docs/nominated-zig/)~~ **0.14.0-dev.1632+d83a3f174**。
+编译需要 [zig 0.14.0](https://ziglang.org/download/)。
 
 编译过程：
 

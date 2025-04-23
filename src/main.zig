@@ -86,6 +86,10 @@ const ShellPrompt = struct {
     }
 
     fn printEnv(self: *Self) !void {
+        if (!self.use_env) {
+            return;
+        }
+
         var env_map = try process.getEnvMap(self.allocator);
         defer env_map.deinit();
 
@@ -94,7 +98,7 @@ const ShellPrompt = struct {
             const key = entry.key_ptr.*;
             const value = entry.value_ptr.*;
 
-            if (std.mem.startsWith(u8, key, "BS_ENV_")) {
+            if (std.mem.startsWith(u8, key, "BP_ENV_")) {
                 self.output.print(" ({s})", .{value});
             }
         }
@@ -137,7 +141,7 @@ fn parseCliFlag(allocator: std.mem.Allocator) !*CliFlag {
             out.show_init = true;
         } else if (std.mem.eql(u8, flag, "--short")) {
             out.use_short_path = true;
-        } else if (std.mem.eql(u8, flag, "--show-env")) {
+        } else if (std.mem.eql(u8, flag, "--venv")) {
             out.use_env = true;
         }
     }
