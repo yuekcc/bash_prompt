@@ -42,7 +42,7 @@ export BP_ENV_JDK_VERSION
 
 ## 编译
 
-编译需要 [zig 0.14.0](https://ziglang.org/download/)。
+编译需要 [zig 0.15.0](https://ziglang.org/download/)。
 
 编译过程：
 
