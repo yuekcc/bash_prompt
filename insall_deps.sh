@@ -1,1 +1,1 @@
-zig fetch "git+https://github.com/ziglibs/known-folders.git#aa24df42183ad415d10bc0a33e6238c437fc0f59" --save="known_folders"
+zig fetch "git+https://github.com/ziglibs/known-folders.git#ab5cf5feb936fa3b72c95d3ad0c0c67791937ba1" --save="known_folders"

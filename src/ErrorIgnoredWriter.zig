@@ -3,13 +3,13 @@ const builtin = @import("builtin");
 const File = std.fs.File;
 
 _stdout: File,
-_buffered_writer: std.io.BufferedWriter(4096, File.Writer),
+_buffered_writer: std.io.BufferedWriter(4096, std.fs.File.DeprecatedWriter),
 
 const Self = @This();
 
 pub fn init() Self {
-    var stdout = std.io.getStdOut();
-    const buffered_writer = std.io.bufferedWriter(stdout.writer());
+    var stdout = std.fs.File.stdout();
+    const buffered_writer = std.io.bufferedWriter(stdout.deprecatedWriter());
 
     return .{
         ._stdout = stdout,

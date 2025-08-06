@@ -4,15 +4,19 @@ pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const known_folders = b.dependency("known_folders", .{}).module("known-folders");
-
-    const app = b.addExecutable(.{
-        .name = "bash_prompt",
+    const root_module = b.addModule("bash_prompt", .{
         .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
         .strip = true,
         .single_threaded = true,
+    });
+
+    const known_folders = b.dependency("known_folders", .{}).module("known-folders");
+
+    const app = b.addExecutable(.{
+        .name = "bash_prompt",
+        .root_module = root_module,
     });
     app.root_module.addImport("known_folders", known_folders);
 
@@ -34,7 +38,13 @@ pub fn build(b: *std.Build) !void {
     {
         const test_step = b.step("test", "Run unit tests");
 
-        const tests = b.addTest(.{ .root_source_file = b.path("src/tests.zig") });
+        const test_root_module = b.addModule("test_root", .{
+            .root_source_file = b.path("src/tests.zig"),
+            .target = target,
+            .optimize = optimize,
+        });
+
+        const tests = b.addTest(.{ .root_module = test_root_module });
         tests.root_module.addImport("known_folders", known_folders);
         const run_tests = b.addRunArtifact(tests);
 
