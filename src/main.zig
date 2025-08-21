@@ -61,7 +61,8 @@ const ShellPrompt = struct {
         const updated_pwd = try std.mem.replaceOwned(u8, self.allocator, cwd, home_dir.?, "~");
 
         var iter = std.mem.splitSequence(u8, updated_pwd, getPathDelimiter());
-        var path_buf = std.ArrayList([]const u8).init(self.allocator);
+
+        var path_buf = std.array_list.Managed([]const u8).init(self.allocator);
 
         while (iter.next()) |p| {
             const str = try self.allocator.dupe(u8, p);

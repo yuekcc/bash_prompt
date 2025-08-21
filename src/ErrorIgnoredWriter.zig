@@ -1,36 +1,47 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const File = std.fs.File;
+const Writer = std.io.Writer;
 
-_stdout: File,
-_buffered_writer: std.io.BufferedWriter(4096, std.fs.File.DeprecatedWriter),
+var _file: File = undefined;
+var _stdout_writer: File.Writer = undefined;
+var _buffer: [1024]u8 = undefined;
+
+_stdout: *Writer,
 
 const Self = @This();
 
 pub fn init() Self {
-    var stdout = std.fs.File.stdout();
-    const buffered_writer = std.io.bufferedWriter(stdout.deprecatedWriter());
+    _file = std.fs.File.stdout();
+    _stdout_writer = _file.writer(&_buffer);
 
     return .{
-        ._stdout = stdout,
-        ._buffered_writer = buffered_writer,
+        ._stdout = &_stdout_writer.interface,
     };
 }
 
 pub fn close(self: *Self) void {
-    self._buffered_writer.flush() catch unreachable;
-    self._stdout.close();
+    self._stdout.flush() catch unreachable;
+    _file.close();
 }
 
 pub fn print(self: *Self, comptime format: []const u8, args: anytype) void {
-    self._buffered_writer.writer().print(format, args) catch unreachable;
+    self._stdout.print(format, args) catch unreachable;
 }
 
 test "ErrorIgnoreWriter" {
-    if (builtin.target.os.tag != .windows) {
-        var writer = init();
-        defer writer.close();
+    var w = init();
 
-        writer.print("hello", .{});
-    }
+    w.print("hello ErrorIgnoreWriter", .{});
+    w.close();
+}
+
+test "BufferWriter" {
+    var test_buffer: [4096]u8 = undefined;
+    var file = std.fs.File.stdout();
+    var w = file.writer(&test_buffer);
+    var stdout = &w.interface;
+    try stdout.print("hello BufferWriter", .{});
+    try stdout.flush();
+    file.close();
 }

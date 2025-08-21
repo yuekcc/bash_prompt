@@ -8,8 +8,8 @@ pub fn build(b: *std.Build) !void {
         .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
-        .strip = true,
-        .single_threaded = true,
+        .strip = false,
+        .single_threaded = false,
     });
 
     const known_folders = b.dependency("known_folders", .{}).module("known-folders");
