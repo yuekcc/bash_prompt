@@ -155,7 +155,12 @@ pub fn main() !void {
     defer arena.deinit();
     var allocator = arena.allocator();
 
-    var writer = ErrorIgnoreWriter.init();
+    var buf: [1024]u8 = undefined;
+    var file = std.fs.File.stdout();
+    defer file.close();
+    var file_writer = file.writer(&buf);
+
+    var writer = ErrorIgnoreWriter.init(&file_writer.interface);
     defer writer.close();
 
     const cli_flag = try parseCliFlag(allocator);
