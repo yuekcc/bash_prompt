@@ -54,6 +54,63 @@ pub fn gitInDir(allocator: std.mem.Allocator, dir: []const u8, argv: []const []c
     });
 }
 
+pub const DiffState = struct {
+    files_changed: u32,
+    insertions: u32,
+    deletions: u32,
+};
+
+fn parseDiffShortState(input: []const u8) !DiffState {
+    var result = DiffState{
+        .files_changed = 0,
+        .insertions = 0,
+        .deletions = 0,
+    };
+
+    // 跳过警告信息行
+    var lines = std.mem.splitAny(u8, input, "\n");
+    while (lines.next()) |line| {
+        if (std.mem.indexOf(u8, line, "file") != null) {
+            var num: u32 = 0;
+            var it = std.mem.tokenizeSequence(u8, line, " ");
+            while (it.next()) |token| {
+                if (std.fmt.parseInt(u32, token, 10)) |num_| {
+                    num = num_;
+                } else |_| {}
+
+                if (std.mem.indexOf(u8, token, "files") != null) {
+                    result.files_changed = num;
+                    continue;
+                }
+
+                if (std.mem.indexOf(u8, token, "insertions") != null) {
+                    result.insertions = num;
+                    continue;
+                }
+                if (std.mem.indexOf(u8, token, "deletions") != null) {
+                    result.deletions = num;
+                    continue;
+                }
+            }
+            break;
+        }
+    }
+
+    return result;
+}
+
+test "parse git diff --shortstat HEAD output" {
+    const input =
+        \\warning: in the working copy of 'src/styles.zig', CRLF will be replaced by LF the next time Git touches it
+        \\2 files changed, 2 insertions(+), 5 deletions(-)
+    ;
+
+    const stat = try parseDiffShortState(input);
+    try std.testing.expectEqual(@as(u32, 2), stat.files_changed);
+    try std.testing.expectEqual(@as(u32, 2), stat.insertions);
+    try std.testing.expectEqual(@as(u32, 5), stat.deletions);
+}
+
 pub const Repo = struct {
     allocator: std.mem.Allocator,
     dir: []const u8,
@@ -91,51 +148,11 @@ pub const Repo = struct {
         return self.git(&[_][]const u8{ "rev-parse", "--abbrev-ref", "HEAD" });
     }
 
-    pub fn getChanges(self: *Self) ![][]const u8 {
-        const output = try self.git(&[_][]const u8{ "status", "--porcelain" });
+    pub fn diffState(self: *Self) !DiffState {
+        const output = try self.git(&[_][]const u8{ "diff", "--shortstat", "HEAD" });
         defer self.allocator.free(output);
 
-        var result = std.array_list.Managed([]const u8).init(self.allocator);
-        defer result.deinit();
-
-        var splitted = std.mem.splitSequence(u8, output, "\n");
-        while (splitted.next()) |entry| {
-            const clean = std.mem.trim(u8, entry, "\n");
-            if (clean.len > 0) {
-                try result.append(clean);
-            }
-        }
-
-        return result.toOwnedSlice();
-    }
-
-    pub fn countChanges(self: *Self) ![]u8 {
-        const output = try self.git(&[_][]const u8{ "diff", "--numstat", "HEAD" });
-        defer self.allocator.free(output);
-
-        var result = std.array_list.Managed([]const u8).init(self.allocator);
-        defer result.deinit();
-
-        var splits = std.mem.splitSequence(u8, output, "\n");
-        var insertions: u64 = 0;
-        var deletions: u64 = 0;
-        while (splits.next()) |entry| {
-            // std.debug.print("entry = {s}\n", .{entry});
-
-            var iter = std.mem.tokenizeSequence(u8, entry, "\t");
-            const inserted = iter.next().?;
-            const deleted = iter.next().?;
-
-            // std.debug.print("inserted, deleted = {s} {s}\n", .{ inserted, deleted });
-
-            const inserted_num = try std.fmt.parseInt(u8, inserted, 10);
-            const deleted_num = try std.fmt.parseInt(u8, deleted, 10);
-
-            insertions = insertions + inserted_num;
-            deletions = deletions + deleted_num;
-        }
-
-        return std.fmt.allocPrint(self.allocator, "+{d}, -{d}", .{ insertions, deletions });
+        return parseDiffShortState(output);
     }
 };
 
@@ -177,11 +194,6 @@ test "call repo object methods" {
     defer allocator.free(branch);
     std.debug.print("current branch: {s}\n", .{branch});
 
-    const changes = try repo.getChanges();
-    defer allocator.free(changes);
-    std.debug.print("current branch changes count: {d}\n", .{changes.len});
-
-    const change_count = try repo.countChanges();
-    defer allocator.free(change_count);
-    std.debug.print("count changes: {s}\n", .{change_count});
+    const change_state = try repo.diffState();
+    std.debug.print("count changes: +{d} -{d}\n", .{ change_state.insertions, change_state.deletions });
 }

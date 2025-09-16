@@ -114,13 +114,10 @@ const ShellPrompt = struct {
             self.output.print(" @ ", .{});
             self.output.print(styles.fg_yellow ++ "{s}" ++ styles.sgr_reset, .{branch_name});
 
-            const changes = repo.getChanges() catch return;
-            if (changes.len > 0) {
+            const changes = repo.diffState() catch return;
+            if (changes.files_changed > 0) {
                 self.output.print(styles.fg_red ++ "*" ++ styles.sgr_reset, .{});
-
-                const change_count = repo.countChanges() catch "";
-
-                self.output.print(" {s}", .{change_count});
+                self.output.print(" +{d}, -{d}", .{ changes.insertions, changes.deletions });
             }
         }
     }
