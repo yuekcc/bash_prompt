@@ -78,7 +78,7 @@ fn parseDiffShortState(input: []const u8) !DiffState {
                     num = num_;
                 } else |_| {}
 
-                if (std.mem.indexOf(u8, token, "files") != null) {
+                if (std.mem.indexOf(u8, token, "file") != null) {
                     result.files_changed = num;
                     continue;
                 }
