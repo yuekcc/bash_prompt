@@ -7,9 +7,9 @@ const RepoError = error{
     NotFound,
 };
 
-pub fn findRepoRoot(allocator: std.mem.Allocator, start: []const u8) ![]const u8 {
+pub fn findRepoRoot(allocator: std.mem.Allocator, io: std.Io, start: []const u8) ![]const u8 {
     var current = start;
-    var dir: fs.Dir = undefined;
+    var dir: std.Io.Dir = undefined;
 
     while (true) {
         // 设置一个代码块，用于释放 git_dir
@@ -17,7 +17,7 @@ pub fn findRepoRoot(allocator: std.mem.Allocator, start: []const u8) ![]const u8
             const git_dir = try path.resolve(allocator, &[_][]const u8{ current, ".git" });
             defer allocator.free(git_dir);
 
-            dir = fs.openDirAbsolute(git_dir, .{}) catch {
+            dir = std.Io.Dir.openDirAbsolute(io, git_dir, .{}) catch {
                 const parent_dir = path.dirname(current);
 
                 // 如果 current 是根目录，parent_dir = null
@@ -30,7 +30,7 @@ pub fn findRepoRoot(allocator: std.mem.Allocator, start: []const u8) ![]const u8
                 continue;
             };
         }
-        dir.close();
+        dir.close(io);
         break;
     }
 
@@ -38,7 +38,7 @@ pub fn findRepoRoot(allocator: std.mem.Allocator, start: []const u8) ![]const u8
 }
 
 // 用 arena 分配器解决内部内存释放问题
-pub fn gitInDir(allocator: std.mem.Allocator, dir: []const u8, argv: []const []const u8) !process.Child.RunResult {
+pub fn gitInDir(allocator: std.mem.Allocator, io: std.Io, dir: []const u8, argv: []const []const u8) !process.RunResult {
     var cmd_line = std.array_list.Managed([]const u8).init(allocator);
     defer cmd_line.deinit();
 
@@ -48,9 +48,9 @@ pub fn gitInDir(allocator: std.mem.Allocator, dir: []const u8, argv: []const []c
     const combined = try cmd_line.toOwnedSlice();
     defer allocator.free(combined);
 
-    return process.Child.run(.{
-        .allocator = allocator,
+    return process.run(allocator, io, .{
         .argv = combined,
+        .create_no_window = true,
     });
 }
 
@@ -114,19 +114,18 @@ test "parse git diff --shortstat HEAD output" {
 pub const Repo = struct {
     allocator: std.mem.Allocator,
     dir: []const u8,
+    io: std.Io,
 
     const Self = @This();
 
-    pub fn discover(allocator: std.mem.Allocator) !Self {
-        const cwd = try process.getCwdAlloc(allocator);
-        defer allocator.free(cwd);
-
-        const repo_dir = try findRepoRoot(allocator, cwd);
+    pub fn discover(allocator: std.mem.Allocator, io: std.Io, cwd: []const u8) !Self {
+        const repo_dir = try findRepoRoot(allocator, io, cwd);
         defer allocator.free(repo_dir);
 
         return Self{
             .allocator = allocator,
             .dir = try allocator.dupe(u8, repo_dir),
+            .io = io,
         };
     }
 
@@ -135,8 +134,8 @@ pub const Repo = struct {
     }
 
     fn git(self: *Self, argv: []const []const u8) ![]const u8 {
-        const cmd_result = try gitInDir(self.allocator, self.dir, argv);
-        const cmd_output = if (cmd_result.term.Exited == 0) cmd_result.stdout else "";
+        const cmd_result = try gitInDir(self.allocator, self.io, self.dir, argv);
+        const cmd_output = if (cmd_result.term.exited == 0) cmd_result.stdout else "";
         defer self.allocator.free(cmd_result.stdout);
         defer self.allocator.free(cmd_result.stderr);
 
@@ -181,7 +180,7 @@ test "execute git cmd in that dir" {
     defer allocator.free(cmd.stdout);
     defer allocator.free(cmd.stderr);
 
-    try std.testing.expectEqual(cmd.term.Exited, 0);
+    try std.testing.expectEqual(cmd.term.exited, 0);
     std.debug.print("stdout: {s}\n", .{cmd.stdout});
 }
 

@@ -12,13 +12,10 @@ pub fn build(b: *std.Build) !void {
         .single_threaded = true,
     });
 
-    const known_folders = b.dependency("known_folders", .{}).module("known-folders");
-
     const app = b.addExecutable(.{
         .name = "bash_prompt",
         .root_module = root_module,
     });
-    app.root_module.addImport("known_folders", known_folders);
 
     b.installArtifact(app);
 
@@ -45,7 +42,6 @@ pub fn build(b: *std.Build) !void {
         });
 
         const tests = b.addTest(.{ .root_module = test_root_module });
-        tests.root_module.addImport("known_folders", known_folders);
         const run_tests = b.addRunArtifact(tests);
 
         test_step.dependOn(&run_tests.step);

@@ -1,7 +1,7 @@
 .{
     .name = .base_prompt,
     .version = "0.0.1",
-    .minimum_zig_version = "0.14.0",
+    .minimum_zig_version = "0.16.0",
     .fingerprint = 0xa8ff451617c3549,
     .paths = .{
         "LICENSE",
@@ -11,11 +11,5 @@
         "src/main.zig",
         "src/styles.zig",
         "src/tests.zig",
-    },
-    .dependencies = .{
-        .known_folders = .{
-            .url = "git+https://github.com/ziglibs/known-folders.git#ab5cf5feb936fa3b72c95d3ad0c0c67791937ba1",
-            .hash = "known_folders-0.0.0-Fy-PJtTTAADUOhGKM0sxzG4eMkNQxRvx9e5dfHVyaeA3",
-        },
     },
 }

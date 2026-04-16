@@ -1,7 +1,6 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const process = std.process;
-const known_folders = @import("known_folders");
 
 const styles = @import("styles.zig").styles;
 const Repo = @import("git.zig").Repo;
@@ -28,16 +27,42 @@ fn printInstallScript(writer: *ErrorIgnoreWriter, exe_name: []const u8) !void {
     writer.print(script, .{exe_name});
 }
 
+fn getHomeDir(allocator: std.mem.Allocator, environ_map: *std.process.Environ.Map) ![]const u8 {
+    if (builtin.os.tag == .windows) {
+        if (environ_map.get("USERPROFILE")) |path| {
+            return allocator.dupe(u8, path);
+        }
+    }
+
+    if (environ_map.get("HOME")) |path| {
+        return allocator.dupe(u8, path);
+    }
+    return error.FileNotFound;
+}
+
 const ShellPrompt = struct {
     allocator: std.mem.Allocator,
     output: *ErrorIgnoreWriter,
     use_short_path: bool,
     use_env: bool,
+    home: []const u8,
+    cwd: []const u8,
+    io: std.Io,
+    environ_map: *std.process.Environ.Map,
 
     const Self = @This();
 
-    pub fn init(allocator: std.mem.Allocator, writer: *ErrorIgnoreWriter, cli_flag: *CliFlag) ShellPrompt {
-        const self: Self = .{ .allocator = allocator, .output = writer, .use_env = cli_flag.use_env, .use_short_path = cli_flag.use_short_path };
+    pub fn init(allocator: std.mem.Allocator, io: std.Io, home: []const u8, cwd: []const u8, environ_map: *std.process.Environ.Map, cli_flag: *CliFlag, writer: *ErrorIgnoreWriter,) ShellPrompt {
+        const self: Self = .{
+            .allocator = allocator,
+            .output = writer,
+            .use_env = cli_flag.use_env,
+            .use_short_path = cli_flag.use_short_path,
+            .home = home,
+            .cwd = cwd,
+            .io = io,
+            .environ_map = environ_map,
+        };
 
         return self;
     }
@@ -56,9 +81,7 @@ const ShellPrompt = struct {
     }
 
     fn printWorkingDir(self: *Self) !void {
-        const cwd = try process.getCwdAlloc(self.allocator);
-        const home_dir = try known_folders.getPath(self.allocator, .home);
-        const updated_pwd = try std.mem.replaceOwned(u8, self.allocator, cwd, home_dir.?, "~");
+        const updated_pwd = try std.mem.replaceOwned(u8, self.allocator, self.cwd, self.home, "~");
 
         var iter = std.mem.splitSequence(u8, updated_pwd, getPathDelimiter());
 
@@ -91,10 +114,7 @@ const ShellPrompt = struct {
             return;
         }
 
-        var env_map = try process.getEnvMap(self.allocator);
-        defer env_map.deinit();
-
-        var iter = env_map.iterator();
+        var iter = self.environ_map.iterator();
         while (iter.next()) |entry| {
             const key = entry.key_ptr.*;
             const value = entry.value_ptr.*;
@@ -106,7 +126,7 @@ const ShellPrompt = struct {
     }
 
     fn printGitStatus(self: *Self) !void {
-        var repo = Repo.discover(self.allocator) catch return;
+        var repo = Repo.discover(self.allocator, self.io, self.cwd) catch return;
         defer repo.deinit();
 
         const branch_name = repo.getCurrentBranch() catch return;
@@ -123,8 +143,8 @@ const ShellPrompt = struct {
     }
 };
 
-fn parseCliFlag(allocator: std.mem.Allocator) !*CliFlag {
-    var args_iter = try std.process.argsWithAllocator(allocator);
+fn parseCliFlag(allocator: std.mem.Allocator, args: std.process.Args) !*CliFlag {
+    var args_iter = try args.iterateAllocator(allocator);
     defer args_iter.deinit();
 
     const exe_name = args_iter.next().?;
@@ -147,20 +167,20 @@ fn parseCliFlag(allocator: std.mem.Allocator) !*CliFlag {
     return out;
 }
 
-pub fn main() !void {
-    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+pub fn main(init: std.process.Init) !void {
+    const allocator = init.gpa;
+    var arena = std.heap.ArenaAllocator.init(allocator);
     defer arena.deinit();
-    var allocator = arena.allocator();
 
     var buf: [1024]u8 = undefined;
-    var file = std.fs.File.stdout();
-    defer file.close();
-    var file_writer = file.writer(&buf);
+    var file = std.Io.File.stdout();
+    defer file.close(init.io);
+    var file_writer = file.writer(init.io, &buf);
 
     var writer = ErrorIgnoreWriter.init(&file_writer.interface);
     defer writer.close();
 
-    const cli_flag = try parseCliFlag(allocator);
+    const cli_flag = try parseCliFlag(allocator, init.minimal.args);
     defer allocator.destroy(cli_flag);
 
     if (cli_flag.show_init) {
@@ -168,13 +188,17 @@ pub fn main() !void {
         return;
     }
 
-    var prompt = ShellPrompt.init(allocator, &writer, cli_flag);
+    const home = try getHomeDir(allocator, init.environ_map);
+    const cwd = try std.Io.Dir.cwd().realPathFileAlloc(init.io, "", allocator);
+
+    var prompt = ShellPrompt.init(allocator, init.io, home, cwd, init.environ_map, cli_flag, &writer);
+    defer prompt.deinit();
+
     try prompt.print();
-    prompt.deinit();
 }
 
 test "find home dir" {
-    const home_dir = try known_folders.getPath(std.testing.allocator, .home);
+    const home_dir = try getHomeDir(std.testing.allocator, .home);
     defer std.testing.allocator.free(home_dir.?);
 
     std.debug.print("home dir: {s}\n", .{home_dir.?});
