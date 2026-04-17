@@ -1,6 +1,5 @@
 const std = @import("std");
-const builtin = @import("builtin");
-const File = std.fs.File;
+
 const Writer = std.Io.Writer;
 
 _stdout: *Writer,
@@ -21,24 +20,31 @@ pub fn print(self: *Self, comptime format: []const u8, args: anytype) void {
     self._stdout.print(format, args) catch unreachable;
 }
 
-test "ErrorIgnoreWriter" {
-    var buf: [1024]u8 = undefined;
-    var file = File.stdout();
-    defer file.close();
-    var writer = file.writer(&buf);
+test "ErrorIgnoreWriter init" {
+    var buf: [256]u8 = undefined;
+    var w = std.Io.Writer.fixed(&buf);
+    var writer = init(&w);
 
-    var w = init(&writer.interface);
+    writer.print("test: {}", .{42});
+    try std.testing.expectEqualStrings("test: 42", buf[0..8]);
+}
 
-    w.print("hello ErrorIgnoreWriter", .{});
-    w.close();
+test "ErrorIgnoreWriter close" {
+    var buf: [256]u8 = undefined;
+    var w = std.Io.Writer.fixed(&buf);
+    var writer = init(&w);
+
+    writer.print("hello", .{});
+    writer.close();
+
+    try std.testing.expectEqualStrings("hello", buf[0..5]);
 }
 
 test "BufferWriter" {
-    var test_buffer: [4096]u8 = undefined;
-    var file = std.fs.File.stdout();
-    var file_writer = file.writer(&test_buffer);
-    var stdout = &file_writer.interface;
-    try stdout.print("hello BufferWriter", .{});
-    try stdout.flush();
-    file.close();
+    var test_buffer: [256]u8 = undefined;
+    var w = std.Io.Writer.fixed(&test_buffer);
+    try w.print("hello BufferWriter", .{});
+    try w.flush();
+    const written = std.mem.trim(u8, w.buffer[0..w.end], "\x00");
+    try std.testing.expectEqualStrings("hello BufferWriter", written);
 }
